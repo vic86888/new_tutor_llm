@@ -1,0 +1,14 @@
+
+# Python 編譯暫存目錄
+__pycache__/
+
+# 虛擬環境資料夾
+venv/
+
+# 環境變數設定檔（含敏感資訊）
+.env
+
+.env
+__pycache__/
+
+.env

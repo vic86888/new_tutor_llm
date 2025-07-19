@@ -1,0 +1,8 @@
+model_name: openai/gpt-4.1-mini
+embed_model: openai/text-embedding-3-small
+chunk_size: 1000
+chunk_overlap: 100
+vector_db_dir: chroma_db
+top_k_intro: 3
+max_history: 20        # 保留最近 N 輪對話
+retry: 2               # 伺服器 500 時最多重試次數
