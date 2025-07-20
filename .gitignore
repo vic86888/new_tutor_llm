@@ -7,8 +7,3 @@ venv/
 
 # 環境變數設定檔（含敏感資訊）
 .env
-
-.env
-__pycache__/
-
-.env
