@@ -2,6 +2,7 @@
 import yaml, argparse
 from tutor_agent import TutorAgent
 from vector_store import load_and_chunk, build_or_load, reset_db
+from prompt import tutor_guideline, weakness_template
 
 CFG = yaml.safe_load(open("config.yaml", encoding="utf-8"))
 
@@ -40,13 +41,18 @@ def main(file_path: str, reset: bool):
     # 互動迴圈
     while True:
         user_input = multiline_input()
-        if user_input.lower() in ("exit", "quit", "bye"):
+        # === A. 使用者想離開 ===
+        if user_input.lower() in {"exit", "quit", "bye"}:
+            # 1. 插入系統指令
+            agent.messages.append({"role": "system", "content": "produce_diagnosis"})
+            # 2. 把格式鎖當 user 訊息丟進模型
+            diagnosis = agent.ask(weakness_template)
+            print("\n助理（診斷）：\n", diagnosis)
+            # 3. 結束
             print("👋 再見！")
             break
-        if user_input.startswith("!reset"):
-            agent = TutorAgent()
-            print("🔄 對話已重置")
-            continue
+
+        # === B. 一般對話 ===
         print("\n助理：", agent.ask(user_input))
 
 if __name__ == "__main__":
