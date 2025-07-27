@@ -21,7 +21,14 @@ def build_or_load(chunks):
     db_dir = CFG["vector_db_dir"]
 
     if os.path.exists(db_dir):
-        return Chroma(persist_directory=db_dir, embedding_function=emb)
+        # init 時用 embedding_function 參數
+        vectordb = Chroma(
+            persist_directory=db_dir,
+            embedding_function=emb
+        )
+        # 新增 chunks
+        vectordb.add_documents(chunks)
+        return vectordb
 
     vectordb = Chroma.from_documents(
         documents=chunks, embedding=emb, persist_directory=db_dir
