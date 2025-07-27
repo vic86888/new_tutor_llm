@@ -21,7 +21,7 @@ def build_or_load(chunks):
     db_dir = CFG["vector_db_dir"]
 
     if os.path.exists(db_dir):
-        return Chroma(persist_directory=db_dir, embedding=emb)
+        return Chroma(persist_directory=db_dir, embedding_function=emb)
 
     vectordb = Chroma.from_documents(
         documents=chunks, embedding=emb, persist_directory=db_dir
