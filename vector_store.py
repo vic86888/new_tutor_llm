@@ -7,13 +7,16 @@ from embeddings import GitHubEmbeddings
 
 CFG = yaml.safe_load(open("config.yaml", encoding="utf-8"))
 
-def load_and_chunk(text: str):
+def load_and_chunk(text: str, source: str) -> list[Document]:
     """將教材文字分段為 chunk 清單"""
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CFG["chunk_size"],
         chunk_overlap=CFG["chunk_overlap"]
     )
-    docs = splitter.create_documents([text])
+    # 切分並同時注入 metadata；因為只有一段 text，metadatas 也只要一筆，
+    # 創出的每個 chunk metadata 都是一樣的
+    metadatas = [{"source": source} for _ in range(len(splitter.split_text(text)))]
+    docs = splitter.create_documents([text], metadatas=metadatas)
     return docs
 
 def build_or_load(chunks):

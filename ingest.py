@@ -34,7 +34,7 @@ def ingest(file_path: str, reset: bool = False):
 
     # 轉文字並切分
     text = convert_to_text(file_path)
-    chunks = load_and_chunk(text)
+    chunks = load_and_chunk(text, file_path)
     print(f"已切出 {len(chunks)} 片教材")
 
     '''
