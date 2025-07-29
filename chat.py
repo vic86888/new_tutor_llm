@@ -1,8 +1,15 @@
 # chat.py
 # -*- coding: utf-8 -*-
 import yaml
+from sentence_transformers import CrossEncoder # 用於重排模型
+from langchain_community.chat_message_histories import ChatMessageHistory
 from tutor_agent import TutorAgent
 from vector_store import reset_db  # 若後續需要重置
+import verify  # 新增：驗證模組
+
+# 選一個合適的重排模型
+# ms-marco-MiniLM-L-6-v2 在速度與效果間有不錯的平衡
+cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 
 # 載入設定
 CFG = yaml.safe_load(open("config.yaml", encoding="utf-8"))
@@ -22,30 +29,99 @@ vectordb = Chroma(
     embedding_function=emb
 )
 print("成功載入向量庫，開始對話")
+# 在這裡新增
+history = ChatMessageHistory()
+agent = TutorAgent()
 
 # 開場摘要
-context = "\n\n---\n\n".join(
-    [doc.page_content for doc in vectordb.similarity_search("intro", k=CFG["top_k_intro"]) ]
-)
-from prompt import tutor_guideline, weakness_template
-intro_prompt = f"""
-以下是今天的教材內容，請先閱讀並列出 2～5 個重點，用親切語氣開場，並詢問學生是否準備好開始學習：
-教材內容：
-{context}
-"""
-print("\n助理：", agent.ask(intro_prompt))
+# context = "\n\n---\n\n".join(
+#     [doc.page_content for doc in vectordb.similarity_search("intro", k=CFG["top_k_intro"]) ]
+# )
+from prompt import tutor_guideline
+# intro_prompt = f"""
+# 系統提示：{tutor_guideline}
+
+# 請使用者提出和參考資料相關的問題：
+# 參考資料：
+# {context}
+# """
+# print("\n助理：", agent.ask(intro_prompt))
+print("\n助理：", "歡迎使用知識問答系統！請輸入您的問題，我會根據提供的教材片段回答。")
+
 
 # 問答迴圈
 from main import multiline_input
 while True:
     user_input = multiline_input()
     if user_input.lower() in {"exit", "quit", "bye"}:
-        agent.messages.append({"role": "system", "content": "produce_diagnosis"})
-        diagnosis = agent.ask(weakness_template)
-        print("\n助理（診斷）：\n", diagnosis)
         print("👋 再見！")
         break
-    print("\n助理：", agent.ask(user_input))
+    # 1. 根據使用者問題做相似度搜尋
+    relevant_docs = vectordb.similarity_search(
+        user_input,
+        k=CFG.get("top_k_query", 5)
+    )
+    context = "\n\n---\n\n".join([doc.page_content for doc in relevant_docs])
+
+     # 1.5 加入重排 (re‑ranking)
+    #  1) 準備 (query, doc_text) pair list
+    pairs = [
+        (user_input, doc.page_content)
+        for doc in relevant_docs
+    ]
+    #  2) 用 CrossEncoder 預測每一對的相關度
+    scores = cross_encoder.predict(pairs)
+    # 3. 把 doc 跟 score 打包成 list of tuples
+    doc_score_pairs = list(zip(relevant_docs, scores))
+
+    # 4. 依 score 排序（由大到小）
+    doc_score_pairs.sort(key=lambda x: x[1], reverse=True)
+
+    # —— 在這裡印出本次用到的 chunk ——  
+    print("\n本次使用的 chunk (已依相關度排序)：")
+    for idx, (doc, score) in enumerate(doc_score_pairs, start=1):
+        # 假設你在建立向量庫時有把 source 記在 metadata 裡
+        source = doc.metadata.get("source", "unknown")
+        snippet = doc.page_content.replace("\n", " ")[:100]  # 取前100字
+        print(f"{idx}. [score={score:.3f}] 來源: {source}，內容預覽: {snippet}…")
+
+    # 5. 產生排序後的 context（可同時顯示分數）
+    context = "\n\n---\n\n".join(
+        f"[score={score:.3f}] {doc.page_content}"
+        for doc, score in doc_score_pairs
+    )
+
+    # 6. 把排序後的 documents 拆回來，如果後續需要再操作
+    sorted_docs = [doc for doc, _ in doc_score_pairs]
+
+    # 2. 取用對話記憶
+    history_msgs = history.messages
+    history_text = "\n".join([f"{msg.type}: {msg.content}" for msg in history_msgs])
+
+    # 3. 構造新的 Prompt
+    prompt = f"""
+    系統提示：{tutor_guideline}
+
+    對話記憶：
+    {history_text}
+
+    參考資料：
+    {context}
+
+    問題：{user_input}
+    """
+
+    # 4. 呼叫模型並印出回答
+    answer = agent.ask(prompt)
+    print("\n助理：", answer)
+
+    # 5. 更新對話記憶
+    history.add_user_message(user_input)
+    history.add_ai_message(answer)
+
+    # 6. 驗證階段
+    report = verify.verify_answer(user_input, answer, context)
+    print("\n🔍 驗證報告：", report)
     
     # 1. 將問題向量化，並找出和問題最匹配的文本一起丟給語言模型，這是我「提問 語言模型回答」在使用的方式
     

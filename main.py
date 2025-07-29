@@ -4,7 +4,7 @@ import yaml
 import argparse
 from tutor_agent import TutorAgent
 from vector_store import load_and_chunk, build_or_load, reset_db
-from prompt import tutor_guideline, weakness_template
+from prompt import tutor_guideline
 
 CFG = yaml.safe_load(open("config.yaml", encoding="utf-8"))
 
