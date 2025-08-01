@@ -46,7 +46,7 @@ from prompt import tutor_guideline
 # {context}
 # """
 # print("\n助理：", agent.ask(intro_prompt))
-print("\n助理：", "歡迎使用知識問答系統！請輸入您的問題，我會根據提供的教材片段回答。")
+print("\n助理：", "歡迎使用知識問答系統！請輸入您的問題，我會根據提供的產品資訊回答。")
 
 
 # 問答迴圈
@@ -77,9 +77,13 @@ while True:
     # 4. 依 score 排序（由大到小）
     doc_score_pairs.sort(key=lambda x: x[1], reverse=True)
 
+    # 取重排後分數最高的前 N 個 chunk
+    top_k = CFG.get("top_k_rerank", 3)
+    selected = doc_score_pairs[:top_k]
+
     # —— 在這裡印出本次用到的 chunk ——  
     print("\n本次使用的 chunk (已依相關度排序)：")
-    for idx, (doc, score) in enumerate(doc_score_pairs, start=1):
+    for idx, (doc, score) in enumerate(selected, start=1):
         # 假設你在建立向量庫時有把 source 記在 metadata 裡
         source = doc.metadata.get("source", "unknown")
         snippet = doc.page_content.replace("\n", " ")[:100]  # 取前100字
@@ -88,7 +92,7 @@ while True:
     # 5. 產生排序後的 context（可同時顯示分數）
     context = "\n\n---\n\n".join(
         f"[score={score:.3f}] {doc.page_content}"
-        for doc, score in doc_score_pairs
+        for doc, score in selected
     )
 
     # 6. 把排序後的 documents 拆回來，如果後續需要再操作
@@ -98,18 +102,20 @@ while True:
     history_msgs = history.messages
     history_text = "\n".join([f"{msg.type}: {msg.content}" for msg in history_msgs])
 
-    # 3. 構造新的 Prompt
     prompt = f"""
-    系統提示：{tutor_guideline}
+        ### ➤ System
+        {tutor_guideline}
 
-    對話記憶：
-    {history_text}
+        ### ➤ Memory
+        {history_text}
 
-    參考資料：
-    {context}
+        ### ➤ 下面是排序後的參考資料（每段包含 reranker 給的相關性分數與來源），請只根據這些資料回答問題，不要憑空補充未出現在資料中的內容。差異高的分數代表內容比較匹配，但最終答案應以文字內容為依據。
+        {context}
 
-    問題：{user_input}
-    """
+        ### ➤ User
+        {user_input}
+        """
+
 
     # 4. 呼叫模型並印出回答
     answer = agent.ask(prompt)

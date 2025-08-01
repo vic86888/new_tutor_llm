@@ -5,7 +5,7 @@ import yaml
 from vector_store import load_and_chunk, build_or_load, reset_db
 from main import convert_to_text
 
-ALLOWED_EXTS = {".pdf", ".docx", ".pptx", ".txt"}
+ALLOWED_EXTS = {".pdf", ".docx", ".pptx", ".txt", ".csv", ".xlsx", ".json"}
 
 def get_default_file(data_dir: str = "data") -> str | None:
     """
