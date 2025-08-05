@@ -15,6 +15,7 @@
 ├─ tutor_agent.py
 ├─ verify.py
 ├─ inspect_vectordb.py
+├─ prompt,py
 ├─ config.yaml
 └─ data/
    └─ …         # 存放欲轉入向量庫的原始檔案
@@ -38,3 +39,5 @@ config.yaml
 裡面放著各種檔案使用的重要參數
 inspect_vectordb.py
 可以查看目前所有的切塊內容和向量
+prompt,py
+產品機器人的系統提示詞
