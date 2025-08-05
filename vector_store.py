@@ -36,7 +36,7 @@ def build_or_load(chunks):
     vectordb = Chroma.from_documents(
         documents=chunks, embedding=emb, persist_directory=db_dir
     )
-    # vectordb.persist()  # 可選，若你希望每次使用新資料可註解掉
+    
     return vectordb
 
 def reset_db():
