@@ -12,7 +12,7 @@ try:
         host="localhost",
         user="root",
         password="",
-        database="nvidia_gpu_comparison"
+        database="product_robot"  # 資料庫名稱請根據實際情況修改
     )
 except mysql.connector.Error as err:
     print(f"❌ 資料庫連線失敗：{err}")

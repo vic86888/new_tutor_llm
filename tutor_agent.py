@@ -2,9 +2,11 @@
 import os, time, yaml, logging, requests
 from dotenv import load_dotenv
 from prompt import tutor_guideline
+from pathlib import Path
+from paths import ROOT, DATA_DIR, CONFIG_FILE, CACHE_DIR, LOG_DIR, rel, ensure_dir
 
 load_dotenv()
-CFG = yaml.safe_load(open("config.yaml", encoding="utf-8"))
+CFG = yaml.safe_load(CONFIG_FILE.read_text(encoding="utf-8"))
 
 class TutorAgent:
     def __init__(self):

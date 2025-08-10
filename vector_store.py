@@ -4,8 +4,10 @@ from langchain_chroma import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document  # 取代 TextLoader
 from embeddings import GitHubEmbeddings
+from pathlib import Path
+from paths import ROOT, DATA_DIR, CONFIG_FILE, CACHE_DIR, LOG_DIR, rel, ensure_dir
 
-CFG = yaml.safe_load(open("config.yaml", encoding="utf-8"))
+CFG = yaml.safe_load(CONFIG_FILE.read_text(encoding="utf-8"))
 
 def load_and_chunk(text: str, source: str) -> list[Document]:
     """將教材文字分段為 chunk 清單"""
@@ -21,12 +23,15 @@ def load_and_chunk(text: str, source: str) -> list[Document]:
 
 def build_or_load(chunks):
     emb = GitHubEmbeddings()
-    db_dir = CFG["vector_db_dir"]
+    db_dir = Path(CFG["vector_db_dir"])
+    if not db_dir.is_absolute():
+        db_dir = (ROOT / db_dir).resolve()
+    print(f"向量庫目錄：{db_dir}")
 
     if os.path.exists(db_dir):
         # init 時用 embedding_function 參數
         vectordb = Chroma(
-            persist_directory=db_dir,
+            persist_directory=str(db_dir),
             embedding_function=emb
         )
         # 新增 chunks
@@ -34,12 +39,14 @@ def build_or_load(chunks):
         return vectordb
 
     vectordb = Chroma.from_documents(
-        documents=chunks, embedding=emb, persist_directory=db_dir
+        documents=chunks, embedding=emb, persist_directory=str(db_dir)
     )
     
     return vectordb
 
 def reset_db():
-    db_dir = CFG["vector_db_dir"]
+    db_dir = Path(CFG["vector_db_dir"])
+    if not db_dir.is_absolute():
+        db_dir = (ROOT / db_dir).resolve()
     if os.path.exists(db_dir):
         shutil.rmtree(db_dir)

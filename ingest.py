@@ -3,22 +3,27 @@
 import os
 import yaml
 from vector_store import load_and_chunk, build_or_load, reset_db
-from main import convert_to_text
+from function import convert_to_text
+from pathlib import Path
+from paths import ROOT, DATA_DIR, CONFIG_FILE, CACHE_DIR, LOG_DIR, rel, ensure_dir
 
 ALLOWED_EXTS = {".pdf", ".docx", ".pptx", ".txt", ".csv", ".xlsx", ".json"}
 
-def get_default_file(data_dir: str = "data") -> str | None:
+def get_default_file(data_dir: str | Path = "data") -> str | None:
     """
     自動偵測指定資料夾下唯一一個符合擴展名的教材檔案
     若無或多於一個，返回 None
     """
-    folder_path = os.path.join('.', data_dir)
-    if not os.path.isdir(folder_path):
+    base_dir = Path(__file__).resolve().parent
+    folder_path = (base_dir / data_dir).resolve()
+    if not folder_path.is_dir():
         return None
-    files = [f for f in os.listdir(folder_path)
-             if os.path.splitext(f)[1].lower() in ALLOWED_EXTS]
+
+    files = [p for p in folder_path.iterdir()
+             if p.is_file() and p.suffix.lower() in ALLOWED_EXTS]
+
     if len(files) == 1:
-        return os.path.join(folder_path, files[0])
+        return str(files[0])   # 這裡是絕對路徑
     return None
 
 def ingest(file_path: str, reset: bool = False):
@@ -55,7 +60,7 @@ def ingest(file_path: str, reset: bool = False):
 if __name__ == "__main__":
     import argparse
 
-    CFG = yaml.safe_load(open("config.yaml", encoding="utf-8"))
+    CFG = yaml.safe_load(CONFIG_FILE.read_text(encoding="utf-8"))
     ap = argparse.ArgumentParser()
     ap.add_argument("file", nargs="?", help="（可選）教材檔案路徑 (.pdf/.docx/.pptx/.txt)")
     ap.add_argument("--reset-db", action="store_true", help="重新建立向量庫")

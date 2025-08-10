@@ -5,14 +5,16 @@ from sentence_transformers import CrossEncoder # 用於重排模型
 from langchain_community.chat_message_histories import ChatMessageHistory
 from tutor_agent import TutorAgent
 from vector_store import reset_db  # 若後續需要重置
-import verify  # 新增：驗證模組
+from pathlib import Path
+from paths import ROOT, DATA_DIR, CONFIG_FILE, CACHE_DIR, LOG_DIR, rel, ensure_dir
+#  import verify  # 新增：驗證模組
 
 # 選一個合適的重排模型
 # ms-marco-MiniLM-L-6-v2 在速度與效果間有不錯的平衡
 cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 
 # 載入設定
-CFG = yaml.safe_load(open("config.yaml", encoding="utf-8"))
+CFG = yaml.safe_load(CONFIG_FILE.read_text(encoding="utf-8"))
 
 # 初始化對話代理
 agent = TutorAgent()
@@ -22,10 +24,12 @@ from langchain_chroma import Chroma
 from embeddings import GitHubEmbeddings
 
 emb = GitHubEmbeddings()
-vector_dir = CFG["vector_db_dir"]
+vector_dir = Path(CFG["vector_db_dir"])
+if not vector_dir.is_absolute():
+    vector_dir = (ROOT / vector_dir).resolve()
 
 vectordb = Chroma(
-    persist_directory=vector_dir,
+    persist_directory=str(vector_dir),
     embedding_function=emb
 )
 print("成功載入向量庫，開始對話")
@@ -50,10 +54,13 @@ print("\n助理：", "歡迎使用知識問答系統！請輸入您的問題，�
 
 
 # 問答迴圈
-from main import multiline_input
+from function import multiline_input
 while True:
     user_input = multiline_input()
-    if user_input.lower() in {"exit", "quit", "bye"}:
+    if not user_input:
+        print("⚠️ 空白訊息不會送出，請輸入問題或指令。")
+        continue
+    elif user_input.lower() in {"exit", "quit", "bye"}:
         print("👋 再見！")
         break
     # 1. 根據使用者問題做相似度搜尋
@@ -71,6 +78,9 @@ while True:
     ]
     #  2) 用 CrossEncoder 預測每一對的相關度
     scores = cross_encoder.predict(pairs)
+    if not pairs:
+        print("⚠️ 沒有找到相關內容，請換個問題或確認資料庫內容。")
+        continue
     # 3. 把 doc 跟 score 打包成 list of tuples
     doc_score_pairs = list(zip(relevant_docs, scores))
 
@@ -126,8 +136,8 @@ while True:
     history.add_ai_message(answer)
 
     # 6. 驗證階段
-    report = verify.verify_answer(user_input, answer, context)
-    print("\n🔍 驗證報告：", report)
+    # report = verify.verify_answer(user_input, answer, context)
+    # print("\n🔍 驗證報告：", report)
     
     # 1. 將問題向量化，並找出和問題最匹配的文本一起丟給語言模型，這是我「提問 語言模型回答」在使用的方式
     

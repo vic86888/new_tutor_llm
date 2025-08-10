@@ -3,6 +3,8 @@
 import os
 import sys
 import yaml
+from pathlib import Path
+from paths import ROOT, DATA_DIR, CONFIG_FILE, CACHE_DIR, LOG_DIR, rel, ensure_dir
 
 # 把專案根目錄加到模組搜尋路徑
 sys.path.append(os.getcwd())
@@ -11,13 +13,15 @@ from embeddings import GitHubEmbeddings
 from langchain_chroma import Chroma
 
 # 1. 載入設定
-CFG = yaml.safe_load(open("config.yaml", encoding="utf-8"))
-VECTOR_DIR = CFG["vector_db_dir"]
+CFG = yaml.safe_load(CONFIG_FILE.read_text(encoding="utf-8"))
+VECTOR_DIR = Path(CFG["vector_db_dir"])
+if not VECTOR_DIR.is_absolute():
+        VECTOR_DIR = (ROOT / VECTOR_DIR).resolve()
 
 # 2. 初始化 Embeddings 與 Chroma 向量庫
 emb = GitHubEmbeddings()
 vectordb = Chroma(
-    persist_directory=VECTOR_DIR,
+    persist_directory=str(VECTOR_DIR),
     embedding_function=emb
 )
 
