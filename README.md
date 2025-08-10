@@ -16,6 +16,7 @@
 ├─ inspect_vectordb.py
 ├─ prompt,py
 ├─ function.py
+├─ paths.py
 ├─ config.yaml
 └─ data/
    └─ …         # 存放欲轉入向量庫的原始檔案
@@ -41,3 +42,5 @@ prompt,py
 產品機器人的系統提示詞
 function.py
 內含 轉換檔案成純文字檔 以及 支援使用者多行輸入 的函式
+paths.py
+獲取目前專案資料夾的絕對位置
